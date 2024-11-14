@@ -1,75 +1,91 @@
-# frida_dump
+# Unity frida_dump
 
-## 1. dump android module
+## 0. 环境准备
 
-### usage:
+1. Android 手机 root
+2. 安装 Frida 服务
+3. 安装本项目环境依赖 `pip install -r requirements.txt`
 
-​	**python dump_so.py**
+## 1. 导出 Unity 游戏的 so 文件
 
-​	**python dump_so.py so_name**
+### 使用方法:
 
+查看参数：
+```commandline
+python dump_so.py --h    
 ```
-➜  frida_dump git:(master) ✗ python dump_so.py libc.so              
-{'name': 'libc.so', 'base': '0xf2282000', 'size': 819200, 'path': '/apex/com.android.runtime/lib/bionic/libc.so'}
-android/SoFixer32: 1 file pushed. 5.9 MB/s (91848 bytes in 0.015s)
-libc.so.dump.so: 1 file pushed. 21.4 MB/s (819200 bytes in 0.036s)
-adb shell /data/local/tmp/SoFixer -m 0xf2282000 -s /data/local/tmp/libc.so.dump.so -o /data/local/tmp/libc.so.dump.so.fix.so
-[main_loop:87]start to rebuild elf file
-[Load:69]dynamic segment have been found in loadable segment, argument baseso will be ignored.
-[RebuildPhdr:25]=============LoadDynamicSectionFromBaseSource==========RebuildPhdr=========================
-[RebuildPhdr:37]=====================RebuildPhdr End======================
-[ReadSoInfo:549]=======================ReadSoInfo=========================
-[ReadSoInfo:696]soname 
-[ReadSoInfo:699]Unused DT entry: type 0x6ffffffb arg 0x00000001
-[ReadSoInfo:599] rel (DT_REL) found at 15f20
-[ReadSoInfo:603] rel_size (DT_RELSZ) 1703
-[ReadSoInfo:699]Unused DT entry: type 0x6ffffffa arg 0x000005f5
-[ReadSoInfo:591] plt_rel (DT_JMPREL) found at 19458
-[ReadSoInfo:595] plt_rel_count (DT_PLTRELSZ) 617
-[ReadSoInfo:584]symbol table found at 32ac
-[ReadSoInfo:580]string table found at 10e58
-[ReadSoInfo:699]Unused DT entry: type 0x6ffffef5 arg 0x0000a98c
-[ReadSoInfo:629] constructors (DT_INIT_ARRAY) found at b5954
-[ReadSoInfo:633] constructors (DT_INIT_ARRAYSZ) 4
-[ReadSoInfo:637] destructors (DT_FINI_ARRAY) found at b3000
-[ReadSoInfo:641] destructors (DT_FINI_ARRAYSZ) 2
-[ReadSoInfo:699]Unused DT entry: type 0x6ffffff0 arg 0x00009b4c
-[ReadSoInfo:699]Unused DT entry: type 0x6ffffffc arg 0x0000a860
-[ReadSoInfo:699]Unused DT entry: type 0x6ffffffd arg 0x00000009
-[ReadSoInfo:699]Unused DT entry: type 0x6ffffffe arg 0x0000a95c
-[ReadSoInfo:699]Unused DT entry: type 0x6fffffff arg 0x00000001
-[ReadSoInfo:703]=======================ReadSoInfo End=========================
-[RebuildShdr:42]=======================RebuildShdr=========================
-[RebuildShdr:536]=====================RebuildShdr End======================
-[RebuildRelocs:783]=======================RebuildRelocs=========================
-[RebuildRelocs:809]=======================RebuildRelocs End=======================
-[RebuildFin:709]=======================try to finish file rebuild =========================
-[RebuildFin:733]=======================End=========================
-[main:123]Done!!!
-/data/local/tmp/libc.so.dump.so.fix.so: 1 file pulled. 29.0 MB/s (819882 bytes in 0.027s)
-libc.so_0xf2282000_819200_fix.so
+```text
+options:
+  -h, --help            show this help message and exit
+  -p PACKAGE, --package PACKAGE
+                        android package name
+  -s SO, --so SO        so name e.g. libil2cpp.so
+  -o OUTPUT, --output OUTPUT
+                        output directory (default: current directory), e.g. "*/{packageName}"
 ```
 
-## 2. dump android dex
-
-```Text
-frida -U --no-pause -f packagename  -l dump_dex.js
-     ____
-    / _  |   Frida 12.4.8 - A world-class dynamic instrumentation toolkit
-   | (_| |
-    > _  |   Commands:
-   /_/ |_|       help      -> Displays the help system
-   . . . .       object?   -> Display information about 'object'
-   . . . .       exit/quit -> Exit
-   . . . .
-   . . . .   More info at http://www.frida.re/docs/home/
-Spawned `packagename`. Resuming main thread!
-[Google Pixel XL::packagename]-> [dlopen:] libart.so
-_ZN3art11ClassLinker11DefineClassEPNS_6ThreadEPKcmNS_6HandleINS_6mirror11ClassLoaderEEERKNS_7DexFileERKNS9_8ClassDefE 0x7ac6dc4f74
-[DefineClass:] 0x7ac6dc4f74
-[dump dex]: /data/data/packagename/files/7aab800000_8341c4.dex
+运行示例：
+```commandline
+python dump_so.py -p com.vitastudio.mahjong -o ./output/
 ```
 
-### Thanks
+最终会在 output/package/ 下生成两个 so 文件：
+* XXX.so-起始地址.so（直接内存导出的）
+* XXX.so-起始地址.fix.so（修复后的）
 
-[https://github.com/F8LEFT/SoFixer](https://github.com/F8LEFT/SoFixer)
+## 2. 导出 Unity 游戏的 global-metadata 文件
+
+### 使用方法:
+
+1. 使用 IDA Pro 打开第一步导出的修复后的 .so 文件
+2. 搜索字符串（Shift + F12）global-metadata
+3. 点击搜索结果，找到 aGlobalMetadata 字样
+4. 在 aGlobalMetadata 上按 X 键，找到使用的地方
+5. 然后按 F5 反编译
+6. 找到 `sub_XXXXXX("global-metadata.dat")` 代码
+7. 其中 sub_XXXXXX 的 XXXXXX 就是 LoadMetadataFile 方法的偏移地址，记下 0xXXXXXX
+8. 开始运行 `dump_metadata.py`
+
+查看参数：
+```commandline
+python dump_metadata.py --h    
+```
+```text
+options:
+  -h, --help            show this help message and exit
+  -p PACKAGE, --package PACKAGE
+                        android package name
+  -a ADDR, --addr ADDR  LoadMetadataFile function addr offset, e.g. 0xCB90B0
+  -o OUTPUT, --output OUTPUT
+                        output directory (default: current directory), e.g. "*/{packageName}"
+```
+
+运行示例：
+```commandline
+python dump_metadata.py -p 'com.vitastudio.mahjong' -a '0xCEB484' -o ./output/
+```
+
+最终会在 output/package/ 下生成 dumped-global-metadata.dat 文件：
+* dumped-global-metadata.dat（直接内存导出的 metadata，修复了头信息中的魔数，版本号固定成了 29/0x1D）
+
+
+## 3. 使用 [Il2CppDumper](https://github.com/Perfare/Il2CppDumper/tree/master) 导出结构信息
+
+### 使用方法:
+
+```commandline
+.\Il2CppDumper.exe <第一步中修复的 so 文件> <第二步中导出的 metadata 文件> <output-directory>
+```
+
+执行后会提示输入 so 文件的起始地址，这里直接输入 0 就行
+```text
+Input il2cpp dump address or input 0 to force continue:
+0
+```
+
+
+## 感谢
+
+* [https://github.com/F8LEFT/SoFixer](https://github.com/F8LEFT/SoFixer)
+* [https://github.com/lasting-yang/frida_dump](https://github.com/lasting-yang/frida_dump)
+* [https://hexed.it/](https://hexed.it/)
