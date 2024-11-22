@@ -12,7 +12,7 @@ class MetadataCallback(Callback):
 
     def get_run_command(self, **kwargs):
         load_metadata_addr_offset = kwargs.get('load_metadata_addr_offset')
-        return f'hook("{load_metadata_addr_offset}");'
+        return f'hook("{load_metadata_addr_offset}")'
 
 
 NOW_PATH = os.path.dirname(os.path.abspath(__file__))

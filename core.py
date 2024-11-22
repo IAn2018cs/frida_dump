@@ -94,7 +94,7 @@ rpc.exports = {
 
 """
         script += open(pathlib.Path(__file__).parent / 'scripts' / script_name, 'r').read()
-        script += f'\n{self.get_run_command(**kwargs)}'
+        script += f'\nsetImmediate(function(){{ setTimeout(() => {self.get_run_command(**kwargs)}, 10); }})'
         self.script = self.session.create_script(script)
 
     @abstractmethod

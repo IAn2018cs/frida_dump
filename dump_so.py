@@ -34,7 +34,7 @@ class SoCallback(Callback):
 
     def get_run_command(self, **kwargs):
         so_name = kwargs.get('so_name')
-        return f'hook("{so_name}");'
+        return f'hook("{so_name}")'
 
 
 NOW_PATH = os.path.dirname(os.path.abspath(__file__))
